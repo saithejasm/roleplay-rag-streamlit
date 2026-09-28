@@ -1,0 +1,4 @@
+# Avoids a known crash: Streamlit's dev file-watcher walks transformers' lazy
+# module tree, which imports torchvision — not installed, and not needed here.
+[server]
+fileWatcherType = "none"
