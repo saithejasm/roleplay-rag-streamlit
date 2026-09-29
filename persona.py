@@ -113,13 +113,28 @@ def trim_to_single_turn(answer: str, scenario: dict) -> str:
     return answer.strip()
 
 
+def build_chat_messages(scenario: dict, system_prompt: str, messages: list[dict]) -> list[dict]:
+    """Assemble system prompt + history for the API call. Any assistant messages
+    before the first user turn (the scenario's canned opening line) are folded
+    into the system prompt instead of sent as their own turn: some chat
+    templates (e.g. Qwen3.x in LM Studio) reject a conversation where an
+    assistant message precedes the first user message ("No user query found")."""
+    history = [{"role": m["role"], "content": m["content"]} for m in messages]
+    first_user = next((i for i, m in enumerate(history) if m["role"] == "user"), len(history))
+    opening = "\n\n".join(m["content"] for m in history[:first_user] if m["role"] == "assistant")
+    if opening:
+        system_prompt += (
+            f"\n\nThe conversation has already begun. You (the {scenario['ai_role']}) "
+            f"opened it by saying:\n\"{opening}\""
+        )
+    return [{"role": "system", "content": system_prompt}, *history[first_user:]]
+
+
 def build_feedback_messages(scenario: dict, messages: list[dict]) -> list[dict]:
     """Build the message list for the end-of-session evaluation call: the
     scenario's feedback rubric as the system prompt, the full transcript
     (role/content only), and a trailing instruction to produce the evaluation."""
-    transcript = [{"role": m["role"], "content": m["content"]} for m in messages]
-    return [
-        {"role": "system", "content": scenario["feedback_rubric_template"]},
-        *transcript,
+    return build_chat_messages(scenario, scenario["feedback_rubric_template"], [
+        *messages,
         {"role": "user", "content": FEEDBACK_TRAILER},
-    ]
+    ])

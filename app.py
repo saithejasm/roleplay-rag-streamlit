@@ -12,6 +12,7 @@ from config import CLOUD_PROVIDERS, EMBED_MODEL_NAME, LOCAL_SERVER_TYPES
 from ingest import ingest_files, ingest_text
 from llm import build_model_string, fetch_local_models, generate_response
 from persona import (
+    build_chat_messages,
     build_context_block,
     build_feedback_messages,
     build_retrieval_query,
@@ -271,8 +272,7 @@ if query:
             context_block = build_context_block(chunks)
             scene_block = build_scene_block(location, mood)
             system_prompt = build_system_prompt(scenario, context_block, scene_block)
-            history = [{"role": m["role"], "content": m["content"]} for m in conversation["messages"]]
-            messages = [{"role": "system", "content": system_prompt}, *history]
+            messages = build_chat_messages(scenario, system_prompt, conversation["messages"])
 
             generation_start = time.perf_counter()
             try:
